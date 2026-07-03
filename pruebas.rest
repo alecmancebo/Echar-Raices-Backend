@@ -1,0 +1,8 @@
+### Prueba Login
+POST http://127.0.0.1:4000/api/login
+Content-Type: application/json
+
+{
+    "usuario": "alec",
+    "password": "123"
+}
