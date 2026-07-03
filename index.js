@@ -7,7 +7,7 @@ import express from 'express';
 import cors from 'cors';
 import { conectarDB } from './db.js';
 import { verificarToken } from "./middleware.js";
-import { obtenerElementos, crearElemento } from "./datos.js";
+import { obtenerElementos, crearElemento, obtenerEstadoUsuario, marcarNarrativaCompletada, borrarElemento, actualizarElemento } from "./datos.js";
 import bcrypt from "bcrypt";
 import jwt from "jsonwebtoken";
 
@@ -17,12 +17,14 @@ servidor.use(express.json());
 
 conectarDB();
 
+servidor.use(express.static("./front"));
+
 // LOGIN
 servidor.post('/api/login', async (req, res) => {
     const { usuario, password } = req.body;
 
     if(!usuario || !usuario.trim() || !password || !password.trim()){
-    return respuesta.sendStatus(403);
+    return res.sendStatus(403);
     }
 
     try {
@@ -33,7 +35,7 @@ servidor.post('/api/login', async (req, res) => {
             return res.status(401).json({ error: "Credenciales inválidas" });
         }
 
-        const token = jwt.sign({ id: usuarioEncontrado._id }, process.env.JWT_SECRET, { expiresIn: '1h' });
+        const token = jwt.sign({ id: usuarioEncontrado._id }, process.env.JWT_SECRET);
         res.json({ token });
     } catch (error) {
         console.error(error);
@@ -41,10 +43,10 @@ servidor.post('/api/login', async (req, res) => {
     }
 });
 
-
+//PROGRESO DE NARRATIVA
 servidor.get('/api/usuario/progreso', verificarToken, async (req, res) => {
     try {
-        const usuario = await obtenerUsuarioPorId(req.usuarioId);
+        const usuario = await obtenerEstadoUsuario(req.usuarioId);
         if (!usuario) return res.status(404).json({ error: "Usuario no encontrado" });
         
         res.json({ narrativaCompletada: !!usuario.narrativaCompletada });
@@ -53,7 +55,7 @@ servidor.get('/api/usuario/progreso', verificarToken, async (req, res) => {
     }
 });
 
-
+// MARCAR NARRATIVA COMPLETADA
 servidor.patch('/api/usuario/narrativa', verificarToken, async (req, res) => {
     try {
         const resultado = await marcarNarrativaCompletada(req.usuarioId);
@@ -65,7 +67,21 @@ servidor.patch('/api/usuario/narrativa', verificarToken, async (req, res) => {
     }
 });
 
-servidor.get('/api/raices', verificarToken, async (req, res) => {
+// CREAR ELEMENTO (GUARDAR OBJETO EN INVENTARIO)
+servidor.post('/api/nuevo', verificarToken, async (req, res) => {
+    try {
+        const nuevoElemento = req.body;
+        nuevoElemento.usuarioId = req.usuarioId; 
+        const resultado = await crearElemento(nuevoElemento);
+        res.status(201).json({ id: resultado.insertedId });
+    } catch (error) {
+        console.error("Error al crear elemento:", error);
+        res.status(500).json({ error: "Error interno al crear el elemento" });
+    }
+});
+
+// OBJETOS INVENTARIO
+servidor.get('/api/elementos', verificarToken, async (req, res) => {
     try {
         const raices = await obtenerElementos(req.usuarioId);
         res.json(raices);
@@ -74,6 +90,7 @@ servidor.get('/api/raices', verificarToken, async (req, res) => {
     }
 });
 
+// BORRAR ELEMENTO (ELIMINAR OBJETO DEL INVENTARIO)
 servidor.delete('/api/elementos/:id', verificarToken, async (req, res) => {
     try {
         const resultado = await borrarElemento(req.params.id, req.usuarioId);
@@ -84,6 +101,7 @@ servidor.delete('/api/elementos/:id', verificarToken, async (req, res) => {
     }
 });
 
+// ACTUALIZAR ELEMENTO (USAR OBJETO DEL INVENTARIO)
 servidor.patch('/api/elementos/:id', verificarToken, async (req, res) => {
     try {
         const resultado = await actualizarElemento(req.params.id, req.usuarioId, req.body);
@@ -93,3 +111,5 @@ servidor.patch('/api/elementos/:id', verificarToken, async (req, res) => {
         res.status(500).json({ error: "Error al actualizar" });
     }
 });
+
+servidor.listen(PUERTO, () => console.log(`Servidor corriendo en puerto ${PUERTO}`));
