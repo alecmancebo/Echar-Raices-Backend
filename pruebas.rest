@@ -7,6 +7,9 @@ Content-Type: application/json
     "password": "123"
 }
 
+### 1. Prueba de obtener datos del juego
+GET http://localhost:4000/api/juego/datos
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjZhNDE3OTUxNjE4OWE2ZmViZTA0YWFlOSIsImlhdCI6MTc4MzEwMDMxMX0.hqXJqHNBLkUX4IUK7XVIFvW0xq6EUr8EL_Rr-kOPSgc
 
 ### 2. Prueba de consulta de progreso
 GET http://localhost:4000/api/usuario/progreso

@@ -3,11 +3,21 @@ dotenv.config();
 
 const PUERTO = process.env.PORT || 4000;
 
-import express from 'express';
-import cors from 'cors';
-import { conectarDB } from './db.js';
+import express from "express";
+import cors from "cors";
+import { conectarDB } from "./db.js";
 import { verificarToken } from "./middleware.js";
-import { obtenerElementos, crearElemento, obtenerEstadoUsuario, marcarNarrativaCompletada, borrarElemento, actualizarElemento } from "./datos.js";
+import {
+    obtenerEstadoUsuario,
+    marcarNarrativaCompletada,
+    obtenerInventario,
+    guardarItem,
+    usarItem,
+    dejarItem,
+    obtenerEstadoJuego,
+    guardarUltimaPantalla,
+    reiniciarPartida,
+} from "./datos.js";
 import bcrypt from "bcrypt";
 import jwt from "jsonwebtoken";
 
@@ -17,14 +27,54 @@ servidor.use(express.json());
 
 conectarDB();
 
-servidor.use(express.static("./front"));
+servidor.get("/api/juego/datos", verificarToken, async (req, res) => {
+    try {
+        const estadoJuego = await obtenerEstadoJuego(req.usuario.id);
+        res.json(estadoJuego);
+    } catch (error) {
+        console.error("Error al obtener datos:", error);
+        res.status(500).json({ message: "Error interno del servidor" });
+    }
+});
+
+servidor.patch("/api/juego/estado", verificarToken, async (req, res) => {
+    try {
+        const { ultimaPantalla, progreso } = req.body || {};
+
+        const estado = await guardarUltimaPantalla(req.usuario.id, ultimaPantalla || "PLAYING");
+        if (typeof progreso === "number") {
+            const db = await conectarDB();
+            await db.collection("juego_datos").updateOne(
+                { user_id: new ObjectId(req.usuario.id) },
+                { $set: { progreso } },
+                { upsert: true }
+            );
+            return res.json(await obtenerEstadoJuego(req.usuario.id));
+        }
+
+        res.json(estado);
+    } catch (error) {
+        console.error("Error al guardar estado del juego:", error);
+        res.status(500).json({ error: "Error al guardar estado del juego" });
+    }
+});
+
+servidor.post("/api/juego/nueva-partida", verificarToken, async (req, res) => {
+    try {
+        const estado = await reiniciarPartida(req.usuario.id);
+        res.json(estado);
+    } catch (error) {
+        console.error("Error al reiniciar la partida:", error);
+        res.status(500).json({ error: "Error al reiniciar la partida" });
+    }
+});
 
 // LOGIN
-servidor.post('/api/login', async (req, res) => {
+servidor.post("/api/login", async (req, res) => {
     const { usuario, password } = req.body;
 
-    if(!usuario || !usuario.trim() || !password || !password.trim()){
-    return res.sendStatus(403);
+    if (!usuario || !usuario.trim() || !password || !password.trim()) {
+        return res.sendStatus(403);
     }
 
     try {
@@ -43,12 +93,14 @@ servidor.post('/api/login', async (req, res) => {
     }
 });
 
-//PROGRESO DE NARRATIVA
-servidor.get('/api/usuario/progreso', verificarToken, async (req, res) => {
+servidor.use(express.static("./front"));
+
+// PROGRESO DE NARRATIVA
+servidor.get("/api/usuario/progreso", verificarToken, async (req, res) => {
     try {
-        const usuario = await obtenerEstadoUsuario(req.usuarioId);
+        const usuario = await obtenerEstadoUsuario(req.usuario.id);
         if (!usuario) return res.status(404).json({ error: "Usuario no encontrado" });
-        
+
         res.json({ narrativaCompletada: !!usuario.narrativaCompletada });
     } catch (error) {
         res.status(500).json({ error: "Error interno al consultar progreso" });
@@ -56,59 +108,73 @@ servidor.get('/api/usuario/progreso', verificarToken, async (req, res) => {
 });
 
 // MARCAR NARRATIVA COMPLETADA
-servidor.patch('/api/usuario/narrativa', verificarToken, async (req, res) => {
+servidor.patch("/api/usuario/narrativa", verificarToken, async (req, res) => {
     try {
-        const resultado = await marcarNarrativaCompletada(req.usuarioId);
+        const resultado = await marcarNarrativaCompletada(req.usuario.id);
         if (resultado.matchedCount === 0) return res.status(404).json({ error: "Usuario no encontrado" });
-        
-        res.sendStatus(204); 
+
+        res.sendStatus(204);
     } catch (error) {
         res.status(500).json({ error: "Error al actualizar progreso" });
     }
 });
 
-// CREAR ELEMENTO (GUARDAR OBJETO EN INVENTARIO)
-servidor.post('/api/nuevo', verificarToken, async (req, res) => {
+// GUARDAR OBJETO EN INVENTARIO
+servidor.post("/api/nuevo", verificarToken, async (req, res) => {
     try {
-        const nuevoElemento = req.body;
-        nuevoElemento.usuarioId = req.usuarioId; 
-        const resultado = await crearElemento(nuevoElemento);
-        res.status(201).json({ id: resultado.insertedId });
+        const item = req.body?.item ?? req.body?.itemId ?? req.body?.id;
+        if (!item) return res.status(400).json({ error: "Se requiere un item" });
+
+        const items = await guardarItem(req.usuario.id, item);
+        res.status(201).json({ items });
     } catch (error) {
         console.error("Error al crear elemento:", error);
         res.status(500).json({ error: "Error interno al crear el elemento" });
     }
 });
 
-// OBJETOS INVENTARIO
-servidor.get('/api/elementos', verificarToken, async (req, res) => {
+// OBTENER INVENTARIO DEL USUARIO
+servidor.get("/api/inventario", verificarToken, async (req, res) => {
     try {
-        const raices = await obtenerElementos(req.usuarioId);
-        res.json(raices);
+        const items = await obtenerInventario(req.usuario.id);
+        res.json(items);
     } catch (e) {
         res.status(500).json({ error: "Error al recuperar datos" });
     }
 });
 
-// BORRAR ELEMENTO (ELIMINAR OBJETO DEL INVENTARIO)
-servidor.delete('/api/elementos/:id', verificarToken, async (req, res) => {
+// USAR OBJETO DEL INVENTARIO
+servidor.patch("/api/inventario/usar", verificarToken, async (req, res) => {
     try {
-        const resultado = await borrarElemento(req.params.id, req.usuarioId);
-        if (resultado.deletedCount === 0) return res.status(404).json({ error: "Elemento no encontrado" });
-        res.sendStatus(204);
-    } catch (e) {
-        res.status(500).json({ error: "Error al borrar" });
+        const item = req.body?.item ?? req.body?.itemId ?? req.body?.id;
+        if (!item) return res.status(400).json({ error: "Se requiere un item" });
+
+        const items = await usarItem(req.usuario.id, item);
+        res.json({ items });
+    } catch (error) {
+        res.status(500).json({ error: "Error al actualizar el inventario" });
     }
 });
 
-// ACTUALIZAR ELEMENTO (USAR OBJETO DEL INVENTARIO)
-servidor.patch('/api/elementos/:id', verificarToken, async (req, res) => {
+// DEJAR OBJETO DEL INVENTARIO
+servidor.post("/api/inventario/dejar", verificarToken, async (req, res) => {
     try {
-        const resultado = await actualizarElemento(req.params.id, req.usuarioId, req.body);
-        if (resultado.matchedCount === 0) return res.status(404).json({ error: "Elemento no encontrado" });
-        res.sendStatus(204);
-    } catch (e) {
-        res.status(500).json({ error: "Error al actualizar" });
+        const item = req.body?.item ?? req.body?.itemId ?? req.body?.id;
+        if (!item) return res.status(400).json({ error: "Se requiere un item" });
+
+        const items = await dejarItem(req.usuario.id, item);
+        res.json({ items });
+    } catch (error) {
+        res.status(500).json({ error: "Error al eliminar el item" });
+    }
+});
+
+servidor.delete("/api/inventario/:itemId", verificarToken, async (req, res) => {
+    try {
+        const items = await dejarItem(req.usuario.id, req.params.itemId);
+        res.json({ items });
+    } catch (error) {
+        res.status(500).json({ error: "Error al eliminar el item" });
     }
 });
 
