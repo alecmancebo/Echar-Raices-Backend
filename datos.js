@@ -6,10 +6,17 @@ function normalizarItem(item) {
     if (!item) throw new Error("Se requiere un item");
 
     if (typeof item === "object") {
-        return String(item.item || item.itemId || item.id || "").trim();
+        return String(item.item || item.itemId || item.id || "").trim().toLowerCase();
     }
 
-    return String(item).trim();
+    return String(item).trim().toLowerCase();
+}
+
+function construirQueryItem(itemId) {
+    const valor = normalizarItem(itemId);
+    return {
+        item_id: { $regex: new RegExp(`^${valor.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}$`, "i") }
+    };
 }
 
 function convertirItem(itemDb) {
@@ -50,7 +57,7 @@ export async function guardarItem(usuarioId, item) {
 
     const existe = await db.collection("user_items").findOne({
         user_id: new ObjectId(usuarioId),
-        item_id: itemId,
+        ...construirQueryItem(itemId),
     });
 
     if (!existe) {
@@ -70,8 +77,17 @@ export async function usarItem(usuarioId, item) {
     const itemId = normalizarItem(item);
 
     await db.collection("user_items").updateOne(
-        { user_id: new ObjectId(usuarioId), item_id: itemId },
-        { $set: { is_used: true } }
+        {
+            user_id: new ObjectId(usuarioId),
+            ...construirQueryItem(itemId),
+        },
+        {
+            $set: {
+                is_used: true,
+                updated_at: new Date(),
+            },
+        },
+        { upsert: true }
     );
 
     return await obtenerInventario(usuarioId);
@@ -83,7 +99,7 @@ export async function dejarItem(usuarioId, item) {
 
     await db.collection("user_items").deleteOne({
         user_id: new ObjectId(usuarioId),
-        item_id: itemId,
+        ...construirQueryItem(itemId),
     });
 
     return await obtenerInventario(usuarioId);
