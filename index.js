@@ -149,8 +149,8 @@ servidor.patch("/api/inventario/usar", verificarToken, async (req, res) => {
         const item = req.body?.item ?? req.body?.itemId ?? req.body?.id;
         if (!item) return res.status(400).json({ error: "Se requiere un item" });
 
-        const items = await usarItem(req.usuario.id, item);
-        res.json({ items });
+        const resultado = await usarItem(req.usuario.id, item);
+        res.json(resultado);
     } catch (error) {
         res.status(500).json({ error: "Error al actualizar el inventario" });
     }
