@@ -89,16 +89,6 @@ function calcularGanadorItinerario(uso, umbrales = {}) {
     return ordenados[0]?.itinerario || null;
 }
 
-function buildJuegoDatosUpdate(setData = {}) {
-    return {
-        $set: setData,
-        $unset: {
-            created_at: "",
-            updated_at: "",
-        },
-    };
-}
-
 // ESTADO DE ITINERARIOS
 export async function obtenerUsoItinerarios(usuarioId) {
     const db = await conectarDB();
@@ -144,11 +134,13 @@ export async function actualizarUsoItinerarios(usuarioId, uso, umbrales = null) 
 
     await db.collection("juego_datos").updateOne(
         { user_id: new ObjectId(usuarioId) },
-        buildJuegoDatosUpdate({
-            itineraryUsage: siguiente,
-            itineraryThresholds: thresholds,
-            winningItinerary: ganador,
-        }),
+        {
+            $set: {
+                itineraryUsage: siguiente,
+                itineraryThresholds: thresholds,
+                winningItinerary: ganador,
+            },
+        },
         { upsert: true }
     );
 
@@ -183,7 +175,7 @@ export async function marcarNarrativaCompletada(usuarioId) {
     const db = await conectarDB();
     return await db.collection("juego_datos").updateOne(
         { user_id: new ObjectId(usuarioId) },
-        buildJuegoDatosUpdate({ narrativaCompletada: true }),
+        { $set: { narrativaCompletada: true } },
         { upsert: true }
     );
 }
@@ -302,7 +294,7 @@ export async function actualizarEstadoJuego(usuarioId, cambios) {
     const db = await conectarDB();
     await db.collection("juego_datos").updateOne(
         { user_id: new ObjectId(usuarioId) },
-        buildJuegoDatosUpdate(cambios),
+        { $set: cambios },
         { upsert: true }
     );
 
@@ -315,9 +307,11 @@ export async function guardarUltimaPantalla(usuarioId, pantalla) {
 
     await db.collection("juego_datos").updateOne(
         { user_id: new ObjectId(usuarioId) },
-        buildJuegoDatosUpdate({
-            ultimaPantalla: valor,
-        }),
+        {
+            $set: {
+                ultimaPantalla: valor,
+            },
+        },
         { upsert: true }
     );
 
@@ -331,15 +325,17 @@ export async function reiniciarPartida(usuarioId) {
 
     await db.collection("juego_datos").updateOne(
         { user_id: new ObjectId(usuarioId) },
-        buildJuegoDatosUpdate({
-            progreso: 1,
-            ultimaPantalla: "PLAYING",
-            itineraryUsage: {
-                a: 0,
-                b: 0,
-                c: 0,
+        {
+            $set: {
+                progreso: 1,
+                ultimaPantalla: "PLAYING",
+                itineraryUsage: {
+                    a: 0,
+                    b: 0,
+                    c: 0,
+                },
             },
-        }),
+        },
         { upsert: true }
     );
 
