@@ -27,6 +27,7 @@ servidor.use(express.json());
 
 conectarDB();
 
+// CARGAR DATOS DEL JUEGO
 servidor.get("/api/juego/datos", verificarToken, async (req, res) => {
     try {
         const estadoJuego = await obtenerEstadoJuego(req.usuario.id);
@@ -155,6 +156,7 @@ servidor.post("/api/inventario/dejar", verificarToken, async (req, res) => {
     }
 });
 
+// ELIMINAR OBJETO DEL INVENTARIO POR PARAMETRO
 servidor.delete("/api/inventario/:itemId", verificarToken, async (req, res) => {
     try {
         const items = await dejarItem(req.usuario.id, req.params.itemId);

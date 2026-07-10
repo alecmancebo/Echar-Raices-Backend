@@ -1,7 +1,7 @@
 import { ObjectId } from "mongodb";
 import { conectarDB } from "./db.js";
 
-// datos.js
+// MAPEO DE OBJETOS A ITINERARIOS
 
 const ITEM_ITINERARIOS = {
     botas: "c",
@@ -18,6 +18,7 @@ const ITEM_ITINERARIOS = {
     sombrilla: "b",
 };
 
+// HELPERS DE NORMALIZACION Y CONVERSION
 function normalizarItem(item) {
     if (!item) throw new Error("Se requiere un item");
 
@@ -88,6 +89,7 @@ function calcularGanadorItinerario(uso, umbrales = {}) {
     return ordenados[0]?.itinerario || null;
 }
 
+// ESTADO DE ITINERARIOS
 export async function obtenerUsoItinerarios(usuarioId) {
     const db = await conectarDB();
     const estado = await db.collection("juego_datos").findOne(
@@ -168,6 +170,7 @@ export async function incrementarUsoItinerario(usuarioId, item) {
     return await actualizarUsoItinerarios(usuarioId, siguiente, umbrales);
 }
 
+// PROGRESO DE NARRATIVA
 export async function marcarNarrativaCompletada(usuarioId) {
     const db = await conectarDB();
     return await db.collection("juego_datos").updateOne(
@@ -177,6 +180,7 @@ export async function marcarNarrativaCompletada(usuarioId) {
     );
 }
 
+// INVENTARIO
 export async function obtenerInventario(usuarioId) {
     const db = await conectarDB();
     const items = await db.collection("user_items").find({ user_id: new ObjectId(usuarioId) }).toArray();
@@ -256,6 +260,7 @@ export async function dejarItem(usuarioId, item) {
     return await obtenerInventario(usuarioId);
 }
 
+// ESTADO GENERAL DEL JUEGO
 export async function obtenerEstadoJuego(usuarioId) {
     const db = await conectarDB();
     const estado = await db.collection("juego_datos").findOne({ user_id: new ObjectId(usuarioId) });
@@ -352,6 +357,7 @@ export async function reiniciarPartida(usuarioId) {
     };
 }
 
+// COMPATIBILIDAD CON OPERACIONES CRUD GENERICAS
 export async function obtenerElementos(usuarioId) {
     return await obtenerInventario(usuarioId);
 }
