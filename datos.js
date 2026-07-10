@@ -1,6 +1,7 @@
-// datos.js
-import { conectarDB } from "./db.js";
 import { ObjectId } from "mongodb";
+import { conectarDB } from "./db.js";
+
+// datos.js
 
 const ITEM_ITINERARIOS = {
     botas: "c",
@@ -136,7 +137,6 @@ export async function actualizarUsoItinerarios(usuarioId, uso, umbrales = null) 
                 itineraryUsage: siguiente,
                 itineraryThresholds: thresholds,
                 winningItinerary: ganador,
-                updated_at: new Date(),
             },
         },
         { upsert: true }
@@ -166,15 +166,6 @@ export async function incrementarUsoItinerario(usuarioId, item) {
     };
 
     return await actualizarUsoItinerarios(usuarioId, siguiente, umbrales);
-}
-
-export async function obtenerEstadoUsuario(usuarioId) {
-    const db = await conectarDB();
-    const usuario = await db.collection("usuarios").findOne(
-        { _id: new ObjectId(usuarioId) },
-        { projection: { narrativaCompletada: 1 } }
-    );
-    return usuario;
 }
 
 export async function marcarNarrativaCompletada(usuarioId) {
@@ -208,7 +199,6 @@ export async function guardarItem(usuarioId, item) {
             item_id: itemId,
             itinerary,
             is_used: false,
-            created_at: new Date(),
         });
     } else if (itinerary && existe.itinerary !== itinerary) {
         await db.collection("user_items").updateOne(
@@ -219,7 +209,6 @@ export async function guardarItem(usuarioId, item) {
             {
                 $set: {
                     itinerary,
-                    updated_at: new Date(),
                 },
             }
         );
@@ -240,7 +229,6 @@ export async function usarItem(usuarioId, item) {
         {
             $set: {
                 is_used: true,
-                updated_at: new Date(),
             },
         },
         { upsert: true }
@@ -282,7 +270,6 @@ export async function obtenerEstadoJuego(usuarioId) {
                 b: 0,
                 c: 0,
             },
-            created_at: new Date(),
         });
     }
 
@@ -318,7 +305,6 @@ export async function guardarUltimaPantalla(usuarioId, pantalla) {
         {
             $set: {
                 ultimaPantalla: valor,
-                updated_at: new Date(),
             },
         },
         { upsert: true }
@@ -343,7 +329,6 @@ export async function reiniciarPartida(usuarioId) {
                     b: 0,
                     c: 0,
                 },
-                updated_at: new Date(),
             },
         },
         { upsert: true }

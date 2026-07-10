@@ -1,14 +1,10 @@
 import dotenv from "dotenv";
-dotenv.config();
-
-const PUERTO = process.env.PORT || 4000;
-
 import express from "express";
 import cors from "cors";
+import { ObjectId } from "mongodb";
 import { conectarDB } from "./db.js";
 import { verificarToken } from "./middleware.js";
 import {
-    obtenerEstadoUsuario,
     marcarNarrativaCompletada,
     obtenerInventario,
     guardarItem,
@@ -20,6 +16,10 @@ import {
 } from "./datos.js";
 import bcrypt from "bcrypt";
 import jwt from "jsonwebtoken";
+
+dotenv.config();
+
+const PUERTO = process.env.PORT || 4000;
 
 const servidor = express();
 servidor.use(cors());
@@ -90,20 +90,6 @@ servidor.post("/api/login", async (req, res) => {
     } catch (error) {
         console.error(error);
         res.status(500).json({ error: "Error en el servidor" });
-    }
-});
-
-servidor.use(express.static("./front"));
-
-// PROGRESO DE NARRATIVA
-servidor.get("/api/usuario/progreso", verificarToken, async (req, res) => {
-    try {
-        const usuario = await obtenerEstadoUsuario(req.usuario.id);
-        if (!usuario) return res.status(404).json({ error: "Usuario no encontrado" });
-
-        res.json({ narrativaCompletada: !!usuario.narrativaCompletada });
-    } catch (error) {
-        res.status(500).json({ error: "Error interno al consultar progreso" });
     }
 });
 
