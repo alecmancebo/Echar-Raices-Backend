@@ -47,7 +47,13 @@ servidor.patch("/api/juego/estado", verificarToken, async (req, res) => {
             const db = await conectarDB();
             await db.collection("juego_datos").updateOne(
                 { user_id: new ObjectId(req.usuario.id) },
-                { $set: { progreso } },
+                {
+                    $set: { progreso },
+                    $unset: {
+                        created_at: "",
+                        updated_at: "",
+                    },
+                },
                 { upsert: true }
             );
             return res.json(await obtenerEstadoJuego(req.usuario.id));
